@@ -1,0 +1,391 @@
+---
+title: "Premistype Population Time"
+author: "Sifei Li(1005914968), Yuqi Chen(1005834509), Zehui Yu(1004796875), Dongqing Sun(1004723310）. TUT 0108, 108-5"
+subtitle: Allocation of Police Resource
+output:
+  ioslides_presentation: default
+  beamer_presentation: default
+  slidy_presentation: default
+  widescreen: yes
+---  
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# echo=FALSE will stop the code chunk from appearing in the knit document
+# warning=FALSE and message=FALSE will stop R messages from appearing in the knit document
+library(tidyverse)
+library(dplyr)
+library(broom)
+library(readr)
+auto_thefts <- read_csv("auto_thefts.csv")
+neighbourhood_profiles_2016 <- read_csv("neighbourhood_profiles_2016.csv")
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+
+
+## Introduction
+
+-	The number of occurrences of car theft is proportional to the population.
+-	The most popular place to have burglary is at outside.
+-	The denser the district, the more likely to have burglary except at apartment. 
+-	The auto theft rate is a different between weekdays and weekend.
+- Use confidence interval, regression model and hypothesis test to verify those findings.
+-	Identify trends which the police can use to prevent auto theft in Toronto in the future.
+-	Strengthen police force during weekdays in outside with high population density.
+-	Raise the public’s awareness.
+
+## Objectives
+
+- Do the number of auto-theft occurrences is proportional to the population?
+- Where are the crime occurrences most likely to happen?  Outside? Apartment? House or commercial?
+- Is there an association between the population and the location of burglary?
+- When is the burglary most likely to happen?
+- How can we allocate our police resources to help provide a better living environment?
+
+
+## Data Summary
+
+- <font size="4"> "type" : store the premisetype of each case in auto-theft</font>
+
+-	<font size="4"> "Premise_type": a new data frame to find the confidence interval for the 4 different locations of auto-theft rate</font>
+
+-	<font size="4"> "occ_dayOfWeek": store the variables of occurrences of auto theft in weekend and weekdays for Outside.</font>
+
+-	<font size="4"> "difference_occurrence": test statistics for the difference between auto theft rate in weekdays and in weekends.</font>
+
+- <font size="4"> "hood_and_type": a new data frame countains Hood_ID and premisetype in 2016 from auto_thefts</font>
+
+- <font size="4"> "num": number of theft occurrences in each neighbourhood</font>
+
+- <font size="4"> "hood": a new data frame countains Hood_ID and population in 2016 from neighbourhood_profiles_2016
+</font>
+
+## Data Summary
+
+
+- <font size="4"> "num_of_occur_outside": number of theft occurrences in outside</font>
+
+- <font size="4"> "num_of_occur_apartment": number of theft occurrences in apartment</font>
+
+- <font size="4"> "num_of_occur_house": number of theft occurrences in house</font>
+
+- <font size="4"> "num_of_occur_commercial": number of theft occurrences in commercial</font>
+
+- <font size="4"> "weekend": theft occurrences happend in weekend</font>
+
+- <font size="4"> "weekday": theft occurrences happend in weekday</font>
+
+- <font size="4"> "weekendpro": probability of theft occurrences happend in weekend</font>
+
+- <font size="4"> "weekdaypro": probability of theft occurrences happend in weekday</font>
+
+
+## Premise Type
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.height=3}
+type <- auto_thefts %>% select(premisetype)
+type %>% ggplot(aes(x=premisetype))+geom_bar()+ labs(title ="Auto-theft Number in Different Premise Type", x="Premise type", y="Number of auto-theft")+theme_minimal()
+```
+
+
+
+### Statistical Method
+
+- <font size="4"> Create a new variable called "type" : store the premisetype of each case in auto-theft</font>
+
+- <font size="4"> Using bar graph since it is categorical variable</font>
+
+- <font size="4"> In order to identify the trend of the graph</font>
+
+### Conclusion
+
+- outside has the highest frequency, which is much higher than frequency of second premise type that is House.
+  
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.height=3}
+#bootstrap
+set.seed(4509)
+n = 1000
+rep = 500
+outside_p <- rep(NA, rep)
+house_p<- rep(NA, rep)
+apartment_p<- rep(NA, rep)
+commercial_p<- rep(NA, rep)
+for(i in 1:rep){
+boot_camp <- type %>% sample_n(size= n, replace=TRUE)
+outside <- boot_camp %>% filter(premisetype == 'Outside') %>% summarise(n())
+house  <- boot_camp %>% filter(premisetype == 'House') %>% summarise(n())
+apartment <- boot_camp %>% filter(premisetype == 'Apartment') %>% summarise(n())
+commercial <- boot_camp %>% filter(premisetype == 'Commercial') %>% summarise(n())
+outside_p[i] <- as.numeric(outside / n)
+house_p[i] <- as.numeric(house / n)
+apartment_p[i] <- as.numeric(apartment / n)
+commercial_p[i] <- as.numeric(commercial / n)
+}
+outside_p <- data.frame(p = outside_p)
+house_p <- data.frame(p = house_p)
+apartment_p <- data.frame(p = apartment_p)
+commercial_p <- data.frame(p = commercial_p)
+
+```
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.height=3}
+data.frame(Premise_type =c("Outside", "House", "Apartment", "Commercial"), 
+           Quantile_2.5_percent = c(quantile(outside_p$p, 0.025),quantile(house_p$p, 0.025),quantile(apartment_p$p, 0.025),quantile(commercial_p$p, 0.025)), 
+           Quantile_97.5_percent = c(quantile(outside_p$p, 0.975),quantile(house_p$p, 0.975),quantile(apartment_p$p, 0.975),quantile(commercial_p$p, 0.975)),
+           CI = c("0.547-0.612", "0.243-0.303","0.013-0.031",	"0.081-0.118"))
+```
+
+
+### Statistical Method
+
+- <font size="4"> To find the premise type with highest number of auto-theft. </font>
+
+- <font size="4"> A bootstrap was conducted in R with 500 repetitions. </font>
+
+- <font size="4"> In each repetition, 1000 data in the type was selected with replacement and stored in a dataset called "boot_camp", and the proportion of each premise type in the "boot_camp" was calculated. Then, 2.5% and 97.5% quantile was calculated in order to find the 95% confidence interval.</font>
+
+### Result
+
+- <font size="4"> The minimum number in the confidence interval for outside is higher than the maximum number in any other confidence intervals.</font>
+
+- <font size="4"> We are 95% confidence that we caputure the true proportion</font>
+
+- <font size="4"> the number of auto-theft happend outside is the highest in all premise types.</font>
+
+- <font size="4"> In addition, number of auto-theft happened outside is much higher than that happened in other premise type.</font>
+
+
+
+
+
+## Population 
+
+**Result**
+
+**Population VS Count**
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.height=3}
+num <- auto_thefts %>% select(Hood_ID) %>% group_by(Hood_ID) %>% summarise(n=n())
+inner_join(x=num, y=neighbourhood_profiles_2016, by="Hood_ID") %>% 
+  ggplot(aes(x=pop_2016, y=n)) + geom_point()+theme_minimal()
+```
+
+
+An extreme data -> **OUTLIER**
+To see a clearer trend
+
+
+## REMOVE IT
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.height=3}
+inner_join(x=num, y=neighbourhood_profiles_2016, by="Hood_ID") %>% filter(n!=1684) %>%
+  ggplot(aes(x=pop_2016, y=n)) + geom_point()+theme_minimal()
+```
+
+- Positive, linear, relatively strong relationship
+
+## Outside & Population
+
+**Result**
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.height=3}
+hood_and_type <- auto_thefts %>% select(Hood_ID, premisetype, occurrenceyear) %>% filter(occurrenceyear =="2016")
+hood <- neighbourhood_profiles_2016 %>% select(Hood_ID, pop_2016) %>% group_by(Hood_ID)
+```
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.height=3}
+num_of_occur_outside <- hood_and_type %>% filter(premisetype=="Outside") %>% 
+  group_by(Hood_ID) %>% summarise(count = n())
+hood_outside <- inner_join(x=num_of_occur_outside, y=hood, by="Hood_ID")
+
+mod_outside <- lm(count ~ pop_2016, data = hood_outside)
+summary(mod_outside)$coefficients
+hood_outside %>% filter(count!=227)%>% ggplot(aes(x=pop_2016, y=count)) + geom_point() + 
+                  geom_smooth(method="lm", se=FALSE) + theme_minimal()
+
+```
+
+##
+
+**Statistic Method**
+
+- <font size="4"> Create a new data frame: "hood_and_type":countains Hood_ID and premisetype in 2016 from auto_thefts</font>
+
+- <font size="4"> In auto_thefts, choose all the data in 2016 including Hood_ID and premisetype (ignore the outlier)</font>
+
+- <font size="4"> Create another data frame: "hood": countains Hood_ID and population in 2016 from neighbourhood_profiles_2016</font>
+
+- <font size="4"> select occurrences happened in outside</font>
+
+- <font size="4"> count the number of occurrences of theft in different neighbourhood </font>
+
+**Conclusion**
+
+- <font size="4"> p-value for the null hypothesis (there is no relationship) is 0.0000345 => reject!</font>
+- <font size="4"> strong relationship</font>
+
+## Apartment & Population
+
+**Result**
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.height=3}
+num_of_occur_apartment <- hood_and_type %>% filter(premisetype=="Apartment") %>% group_by(Hood_ID) %>% summarise(count = n())
+hood_apartment <- inner_join(x=num_of_occur_apartment, y=hood, by="Hood_ID")
+
+mod_apartment <- lm(count ~ pop_2016, data = hood_apartment)
+summary(mod_apartment)$coefficients
+hood_apartment %>% filter(count!=227)%>% ggplot(aes(x=pop_2016, y=count)) + geom_point() + 
+                  geom_smooth(method="lm", se=FALSE) + theme_minimal()
+
+```
+
+## 
+
+**Statistic Method**
+
+- <font size="5"> In auto_thefts, choose all the data in 2016 including Hood_ID and premisetype (ignore the outlier)</font>
+
+- <font size="5"> select occurrences happened in apartment</font>
+
+- <font size="5"> count the number of occurrences of theft in different neighbourhood</font>
+
+**Conclusion**
+
+- p-value for the null hypothesis (there is no relationship) is 0.688 => not reject
+- no relationship
+
+## Commercial & Population
+
+**Result**
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.height=3}
+num_of_occur_commercial <- hood_and_type %>% filter(premisetype=="Commercial") %>% group_by(Hood_ID) %>% summarise(count = n())
+hood_commercial <- inner_join(x=num_of_occur_commercial, y=hood, by="Hood_ID")
+
+mod_commercial <- lm(count ~ pop_2016, data = hood_commercial)
+summary(mod_commercial)$coefficients
+hood_commercial %>% filter(count!=227)%>% ggplot(aes(x=pop_2016, y=count)) + geom_point() + 
+                  geom_smooth(method="lm", se=FALSE) + theme_minimal()
+```
+
+## 
+
+**Statistic Method**
+
+- In auto_thefts, choose all the data in 2016 including Hood_ID and premisetype (ignore the outlier)
+- select occurrences happened in commercial
+- count the number of occurrences of theft in different neighbourhood
+
+**Conclusion**
+
+- p-value for the null hypothesis (there is no relationship) is 0.012 => reject
+- strong relationship
+
+## House & Population
+
+**Result**
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.height=3, fig.width=4}
+par.settings=list(fontsize=list(text=18))
+num_of_occur_house <- hood_and_type %>% filter(premisetype=="House") %>% group_by(Hood_ID) %>% summarise(count = n())
+hood_house <- inner_join(x=num_of_occur_house, y=hood, by="Hood_ID")
+
+mod_house <- lm(count ~ pop_2016, data = hood_house)
+summary(mod_house)$coefficients
+hood_house %>% filter(count!=227)%>% ggplot(aes(x=pop_2016, y=count)) + geom_point() + 
+                  geom_smooth(method="lm", se=FALSE) + theme_minimal()
+
+```
+
+## 
+
+**Statistic Method**
+
+
+- <font size="4">  choose all the data in 2016 including Hood_ID and premisetype (ignore the outlier)</font>
+
+- <font size="4"> select occurrences happened in house</font>
+
+- <font size="4"> count the number of occurrences of theft in different neighbourhood</font>
+
+
+**Conclusion**
+
+- <font size="4"> p-value for the null hypothesis (there is no relationship) is 0.0000183 => reject</font>
+
+- <font size="4"> strong relationship</font>
+
+## Weekend VS Weekday
+
+**Result**
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.height=3}
+occ_dayOfWeek <- auto_thefts %>% 
+  select(premisetype, occurrencedayofweek) %>% 
+  filter(premisetype == 'Outside') %>% 
+  mutate(week =ifelse(occurrencedayofweek == "Saturday    "|occurrencedayofweek == "Sunday    ", "Weekend", "Weekday" ))
+weekend <- occ_dayOfWeek %>% filter(week == "Weekend")
+weekendpro <- nrow(weekend) / nrow(occ_dayOfWeek)
+
+weekday <- occ_dayOfWeek %>% filter(week == "Weekday")
+weekdaypro <- nrow(weekday) / nrow(occ_dayOfWeek)
+
+difference_occurrence <- weekdaypro - weekendpro
+
+set.seed(130)
+n_observation <- nrow(occ_dayOfWeek)
+repetitions <- 1000
+simulated_stats <- rep(NA, repetitions)
+
+for (i in 1:repetitions) {
+  new_sim <- sample(c("weekend", "weekday"),
+                    size = n_observation, prob = c(2/7, 5/7),
+                    replace = TRUE)
+  sim_p <- sum(new_sim == "weekend" ) / n_observation
+  simulated_stats[i] <-sim_p
+}
+
+sim <- tibble(p_weekend = simulated_stats)
+sim %>% ggplot(aes(x = p_weekend)) + geom_histogram(binwidth = 0.001, colour = "black", fill = "grey") +
+ labs(title = "Simulated Proportion of Auto-theft Happened on Weekend", 
+      x = "Proportion of auto-theft happened on weekend", 
+      y= "Number of auto-theft") + 
+  theme_minimal()
+sim %>%
+  filter(p_weekend <= weekendpro | p_weekend >= 2/7+(2/7-weekendpro)) %>%
+  summarise(p_value = n() / repetitions)
+
+```
+
+
+## Statistic Method
+
+- <font size="2"> "weekend": theft occurrences happend in weekend</font>
+- <font size="2"> "weekday": theft occurrences happend in weekday</font>
+- <font size="2"> "weekendpro": probability of theft occurrences happend in weekend</font>
+- <font size="2"> "weekdaypro": probability of theft occurrences happend in weekday</font>
+- <font size="2"> select "premisetype" and "occurrencedayofweek" and filter "Outside" from "Premisetype" </font>
+- <font size="2"> name "Saturday" and "Sunday" as "weekend", otherwise it is “weekday”</font>
+- <font size="2"> calculate the probability of "weekend" and "weekday" and find the difference between them</font>
+- <font size="2"> find the difference between weekdaypro and weekendpro</font>
+- <font size="2"> use hypothesis test to see whether the auto theft rate is same on weekdays and weekends (5/7 on weekday and 2/7 on weekend)</font>
+- <font size="2"> calculate the probability of "weekend"</font>
+- <font size="2"> repeat for 1000 times</font>
+- <font size="2"> make a histogram graph</font>
+- <font size="2"> calcultae p-value ,which is 0 (very strong evidence against the null hypothesis test) </font>
+- <font size="2"> the probability of auto theft rate is **not** 1/7 on Sunday.</font>
+
+
+## Conclusion
+
+
+-	<font size="6"> make a prediction in the future</font>
+
+- <font size="6"> police should pay more attention to outside</font>
+
+-	<font size="6"> more resources should be allocated in the weekdays</font>
+
+-	<font size="6"> pay less attention to apartment even if it has a large population</font>
+
+-	<font size="6"> raise public awareness to help the police to build a nice living condition </font>
+
+
+---
+*THANK YOU FOR YOUR TIME*
